@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title></title>
+</head>
+<body>
+<fieldset>
+    <legend>Add Person</legend>
+    <div class="form-group">
+        <label>名字：</label>
+        <input type="text" name="" placeholder="Name" id="name">
+    </div>
+    <div class="form-group">
+        <label>邮箱：</label>
+        <input type="text" name="" placeholder="Email" id="email">
+    </div>
+    <div class="form-group">
+        <button id="addButton">Add Data</button>
+    </div>
+</fieldset>
+<fieldset>
+    <legend>Get Person</legend>
+    <div class="form-group">
+        <label>输入你要搜索的键名：</label>
+        <input type="text" name="" id="search" placeholder="输入你要搜索的键名">
+        <button id="searchButton">搜索</button>
+    </div>
+    <div id="status"></div>
+</fieldset>
+<fieldset>
+    <legend>Delete Person</legend>
+    <div class="form-group">
+        <label>输入你要搜索的键名：</label>
+        <input type="text" name="" id="del_Id" placeholder="输入你要删除的键名">
+        <button id="delButton">删除</button>
+    </div>
+</fieldset>
+<fieldset>
+    <legend>Update Person</legend>
+    <div class="form-group">
+        <label>Key：</label>
+        <input type="text"  id="key" name="" placeholder="请输入键名">
+    </div>
+    <div class="form-group">
+        <label>名字：</label>
+        <input type="text" name="" placeholder="Name" id="Update_name">
+    </div>
+    <div class="form-group">
+        <label>邮箱：</label>
+        <input type="text" placeholder="Email" id="Update_email" name="">
+    </div>
+    <div class="form-group">
+        <button id="UpdateButton">Update Person</button>
+    </div>
+</fieldset>
+<fieldset>
+    <legend>Get All Data</legend>
+    <button id="allDataButton">查找所有</button>
+    <div id="allData"></div>
+</fieldset>
+</body>
+<script type="text/javascript">
+    var idbSupported = false;
+    var db;
+    document.addEventListener("DOMContentLoaded", function(){
+        if("indexedDB" in window){
+            idbSupported = true;
+        }
+        if(idbSupported){
+            var openRequest = indexedDB.open("text01",1);
+            openRequest.onupgradeneeded = function(e){
+                console.log('running onupgradeneeded');
+                var thisDB = e.target.result;
+                if(!thisDB.objectStoreNames.contains("people")){
+                    thisDB.createObjectStore("people", {autoIncrement:true});
+                }
+            }
+            openRequest.onsuccess = function(e){
+                console.log("Success!");
+                db = e.target.result;
+                document.querySelector("#addButton").addEventListener("click",addPerson, false);
+                document.querySelector("#searchButton").addEventListener("click", getPerson, false);
+                document.querySelector("#allDataButton").addEventListener("click", getAllData, false);
+                document.querySelector("#UpdateButton").addEventListener("click", updatePerson, false);
+                document.querySelector("#delButton").addEventListener("click", delPerson, false);
+            }
+            openRequest.onerror = function(e){
+                console.log("Error");
+                console.dir(e);
+            }
+        }
+    }, false);
+    function addPerson(e){
+        var name = document.querySelector("#name").value;
+        var email = document.querySelector("#email").value;
+        var transaction = db.transaction(["people"],"readwrite");
+        var store = transaction.objectStore("people");
+        var person = {
+            name: name,
+            email: email,
+            created: new Date()
+        }
+        var request = store.add(person);
+        request.onsuccess = function(e){
+            console.log("Woot! Did it");
+            alert("加入成功！");
+        }
+        request.onerror = function(){
+            console.log("Error",e.target.error.name);
+        }
+    }
+    function delPerson(e){
+        var key = document.querySelector("#del_Id").value;
+        if(key == "" || isNaN(key)){return;}
+        var transaction = db.transaction(["people"], 'readwrite');
+        var store = transaction.objectStore("people");
+        var request = store.delete(Number(key));
+        request.onsuccess = function(e){
+            alert("删除成功！");
+        }
+        request.onerror = function(e){
+            alert("删除失败！");
+        }
+    }
+    function updatePerson(e){
+        var key = document.querySelector("#key").value;
+        var name = document.querySelector("#Update_name").value;
+        var email = document.querySelector("#Update_email").value;
+        var person = {
+            name: name,
+            email: email,
+            created: new Date()
+        }
+        //创建事务
+        var transaction = db.transaction(['people'],'readwrite');
+        var store = transaction.objectStore("people");
+        var request = store.put(person, Number(key));
+        request.onsuccess = function(e){
+            alert("修改成功！");
+        }
+        request.onerror = function(e){
+            console.log("Error", e.target.error.name);
+        }
+    }
+    function getPerson(e){
+        var key = document.querySelector("#search").value;
+        if(key === "" || isNaN(key)){ return; }
+        var transaction = db.transaction(["people"],"readwrite");
+        var store = transaction.objectStore("people");
+        var request = store.get(Number(key));
+        request.onsuccess = function(e){
+            var result = e.target.result;
+            console.dir(result);
+            if(result){
+                var s = "<h2>Key "+key+"</h2>";
+                for(var field in result){
+                    s += field +": "+ result[field]+'<br/>';
+                }
+                document.querySelector("#status").innerHTML = s;
+            }else{
+                document.querySelector("#status").innerHTML = "<h2>No Match</h2>"
+            }
+        }
+    }
+    function getAllData(e){
+        var s ="";
+        var transaction = db.transaction(['people'], "readwrite");
+        var objectStore = transaction.objectStore("people");
+        var cursor = objectStore.openCursor();
+        cursor.onsuccess = function(e){
+            var result = e.target.result;
+            if(result){
+                s += "<h2>Key "+ result.key +"</h2>";
+                for(var field in result.value){
+                    s += field +": "+ result.value[field] + "<br/>";
+                }
+                result.continue();
+            }
+            document.querySelector("#allData").innerHTML = s;
+        }
+    }
+</script>
+</html>
